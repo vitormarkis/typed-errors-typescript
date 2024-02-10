@@ -1,3 +1,6 @@
+import { bad, nice } from "~/utils"
+import { Fail } from "./Fail"
+
 const db = {
     async findAccountById(accountId: string) {
         // return null
@@ -26,8 +29,6 @@ class Res {
     }
 }
 
-type E = readonly [Error] | readonly [undefined, any]
-
 /**
  *
  *
@@ -35,35 +36,35 @@ type E = readonly [Error] | readonly [undefined, any]
  *
  */
 
-async function getAccount({ accountId }: any): Promise<E> {
+async function getAccount({ accountId }: any) {
     const account = await db.findAccountById(accountId)
 
     if (!account) {
-        return [new Error("ACCOUNT_NOT_FOUND")] as const
+        return bad(new Fail("ACCOUNT_NOT_FOUND"))
     }
 
-    return [undefined, account] as const
+    return nice(account)
 }
 
-async function addCreditToAccount({ accountId, creditAmount, userId }: any): Promise<E> {
+async function addCreditToAccount({ accountId, creditAmount, userId }: any) {
     const [errorGettingAccount, account] = await getAccount({ accountId })
 
     if (errorGettingAccount) {
-        return [errorGettingAccount] as const
+        return bad(errorGettingAccount)
     }
 
     if (account.ownerId !== userId) {
-        return [new Error("USER_IS_NOT_ACCOUNT_OWNER")]
+        return bad(new Fail("USER_IS_NOT_ACCOUNT_OWNER"))
     }
 
     account.addCredits(creditAmount)
     const [errorSavingAccount] = await db.saveAccount(account)
 
     if (errorSavingAccount) {
-        return [errorSavingAccount]
+        return bad(errorSavingAccount)
     }
 
-    return [undefined, undefined] as const
+    return nice()
 }
 
 const res = new Res()
@@ -76,24 +77,24 @@ async function main() {
     })
 
     if (errorAddingCreditsToAccount) {
-        switch (errorAddingCreditsToAccount.message) {
+        switch (errorAddingCreditsToAccount.code) {
             case "ACCOUNT_NOT_FOUND":
                 return res.status(404).json({
-                    message: "Conta não encontrada.",
+                    message: "Account was not found.",
                 })
             case "USER_IS_NOT_ACCOUNT_OWNER":
                 return res.status(403).json({
-                    message: "Você não pode adicionar créditos em contas que você não é dono.",
+                    message: "You can't credit an account that don't belongs to you.",
                 })
             default:
                 return res.status(400).json({
-                    message: "Erro desconhecido.",
+                    message: "Unknown error.",
                 })
         }
     }
 
     return res.status(200).json({
-        message: "Você adicionou 9000 créditos à sua conta.",
+        message: "You credited 9000 coins to your account.",
     })
 }
 
